@@ -47,7 +47,8 @@
     <link href="{{ asset('css/custom.css') }}" rel="stylesheet">
     <style>
         .bg-fullscreen {
-            background: url('{{ asset('img/Background_2.jpg') }}') no-repeat center center;
+            background-color: black;
+            /* background: url('{{ asset('img/Background_2.jpg') }}') no-repeat center center;  */
             background-size: cover;
             position: sticky;
             top:0px;
@@ -57,7 +58,8 @@
             color: white;
         }
         main{
-            background: url('{{ asset('img/Background_2.jpg') }}') no-repeat center center;
+            /* background-color: grey; */
+            background: url('{{ asset('img/background_3.jpg') }}') no-repeat center center;
             background-attachment: fixed;
             background-size: cover;
             height: 100vh;
@@ -70,13 +72,17 @@
 <body>
     <div id="app">
         <main>
-            @if (Auth::user()->hasRole('administrator'))
+            @if (Auth::user()->hasRole(['administrator', 'superAdministrator']))
                 {{-- if admin, go here --}}
                 @yield('admin')
             @endif
             @if (Auth::user()->hasRole('user'))
                 {{-- if user, go here --}}
                 @yield('user')
+            @endif
+            @if (Auth::user()->hasRole('chatSupport'))
+            {{-- @yield('user') --}}
+                @yield('chatSupport')
             @endif
         </main>
     </div>

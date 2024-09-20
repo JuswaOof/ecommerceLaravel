@@ -83,9 +83,12 @@ class RegisterController extends Controller
             'email' => $data['email'],
             'address' => $data['address'],
             'eWallet' => $data['eWallet'],
+            'status' => 'active',
             'password' => Hash::make($data['password']),
         ]);
         $user->attachRole('user');
+        // $user->attachPermissions(['users-read', 'users-create']);
+        // $user->attachPermissions('users-create');
         return $user;
     
     }

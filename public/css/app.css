@@ -2,13 +2,27 @@
 
 .glass {
   background: rgba(255, 255, 255, 0.25) !important;
-  box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37) !important;
+  box-shadow: 0 8px 32px 0 rgba(133, 133, 133, 0.37) !important;
   backdrop-filter: blur(5px) !important;
   -webkit-backdrop-filter: blur(5px) !important;
   border-radius: 10px !important;
   border: 1px solid rgba(255, 255, 255, 0.18) !important;
 }
 
+/* button active/inactive */
+.adminFunctionBtnActive{
+  background: rgba(26, 26, 26, 0.664) !important;
+  color: white;
+}
+
+.adminFunctionBtn:hover{
+  background: rgba(26, 26, 26, 0.664) !important;
+  color: white;
+}
+
+.logOutBtn{
+  background: rgba(255, 88, 88, 0.664) !important;
+}
 
 .dashboard-section {
   height: 100%;

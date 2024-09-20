@@ -5,8 +5,12 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Product;
 use App\Order;
+use App\User;
+use App\Models\Role;
+use App\Models\Permission;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
 
 
 class HomeController extends Controller
@@ -30,11 +34,13 @@ class HomeController extends Controller
     {
         $products = Product::all();
         $orders = Order::all();
+        $permissions = Permission::all();
+        $roles = Role::all();
 
         $availableProductCount = Product::where('isAvailable', 'Available')->count();
         $notAvailableProductCount = Product::where('isAvailable', 'Not Available')->count();
 
-        return view('home', compact('products', 'orders', 'availableProductCount', 'notAvailableProductCount'));
+        return view('home', compact('products', 'orders', 'availableProductCount', 'notAvailableProductCount', 'permissions', 'roles'));
     }
 
     // add product method
@@ -213,13 +219,276 @@ class HomeController extends Controller
         return response()->json($productCounts);
     }
 
-    
-    // public function order_data(Request $request)
-    // {
-    //     $productCounts = Order::select('productName')->groupBy('productName')->selectRaw('count(*) as count')->get();
+    // show roles
+    public function show_users(Request $request)
+    {
+        $query = User::with('roles');
+        // $query = User::query();
+        // dd(json_encode($query));
 
-    //     return response()->json($productCounts);
+        if ($search = $request->input('search.value')) {
+            $query->where('productName', 'like', "%{$search}%")
+                ->orWhere('customer', 'like', "%{$search}%")
+                ->orWhere('status', 'like', "%{$search}%")
+                ->orWhere('price', 'like', "%{$search}%")
+                ->orWhere('created_at', 'like', "%{$search}%");
+        }
+
+        if ($order = $request->input('order.0.column')) {
+            $columns = ['productName', 'customer', 'created_at', 'status', 'price'];
+            $direction = $request->input('order.0.dir', 'asc');
+            $query->orderBy($columns[$order], $direction);
+        }
+
+        $start = $request->input('start', 0);
+        $length = $request->input('length', 10);
+        $total = $query->count();
+
+        $roles = $query->offset($start)->limit($length)->get();
+
+        return response()->json([
+            'draw' => $request->input('draw'),
+            'recordsTotal' => $total,
+            'recordsFiltered' => $total,
+            'data' => $roles,
+        ]);
+    }
+    //add user
+    public function add_user(Request $request)
+    {
+        
+        // return($request->input('status'));
+        // return($request->role);
+
+        $validatedData = $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+            'phone' => ['required', 'regex:/^09\d{9}$/', 'unique:users'],
+            'email' => ['required', 'string', 'email', 'max:255', 'unique:users'],
+            'address' => ['required', 'string', 'max:255'],
+            'status' => ['required', 'string', 'max:255'],
+            'password' => [
+                            'required',
+                            'string',
+                            'min:8',
+                            'regex:/[a-z]/',      // must contain at least one lowercase letter
+                            'regex:/[A-Z]/',      // must contain at least one uppercase letter
+                            'regex:/[0-9]/',      // must contain at least one digit
+                            'regex:/[@$!%*?&#]/', // must contain a special character
+                            'confirmed'
+                            ]
+        ]);
+
+        $user = User::create([
+            'name' => $request->input('name'),
+            'phone' => $request->input('phone'),
+            'email' => $request->input('email'),
+            'address' => $request->input('address'),
+            'status' => $request->input('status'),
+            'password' => Hash::make($request->input('password')),
+        ]);
+        
+        // if($request->input('role') == 'chatSupport'){
+        //     $user->attachRole('chatSupport');
+        // }elseif($request->input('role') == 'administrator'){
+        //     $user->attachRole('administrator');
+        // }elseif($request->input('role') == 'superAdministrator'){
+        //     $user->attachRole('superAdministrator');
+        // }
+
+        $user->attachRole($request->role);
+
+    }
+    // populate edit user form
+    public function get_user(Request $request)
+    {
+        // return ($request->id);
+
+        // $user = User::findOrFail($request->id);
+
+        $user = User::with('roles')->findOrFail($request->id);
+
+        return response()->json($user);
+        // return($user);
+        
+    }
+    //edit user
+    public function edit_user(Request $request)
+    {
+        // return $request->input('id');
+        // return $request->input('editStatus');
+        $validatedData = $request->validate([
+            'editName' => ['required', 'string', 'max:255'],
+            'editPhone' => ['required', 'regex:/^09\d{9}$/'],
+            'editEmail' => ['required', 'string', 'email', 'max:255'],
+            'editAddress' => ['required', 'string', 'max:255'],
+            'editStatus' => ['required', 'string', 'max:255'],
+        ]);
+        $user = User::findOrFail($request->input('id'));
+
+        $user->roles()->detach();
+
+        $user->attachRole($request->input('editRole'));
+
+        $user->name = $request->input('editName');
+        $user->phone = $request->input('editPhone');
+        $user->email = $request->input('editEmail');
+        $user->address = $request->input('editAddress');
+        $user->status = $request->input('editStatus');
+
+        
+
+        $user->save();
+
+
+        
+        return $user;
+    }
+    // show permissions
+    public function show_permissions(Request $request)
+    {
+        $query = Role::with('permissions');
+
+        if ($search = $request->input('search.value')) {
+            $query->where('productName', 'like', "%{$search}%")
+                ->orWhere('customer', 'like', "%{$search}%")
+                ->orWhere('status', 'like', "%{$search}%")
+                ->orWhere('price', 'like', "%{$search}%")
+                ->orWhere('created_at', 'like', "%{$search}%");
+        }
+
+        if ($order = $request->input('order.0.column')) {
+            $columns = ['productName', 'customer', 'created_at', 'status', 'price'];
+            $direction = $request->input('order.0.dir', 'asc');
+            $query->orderBy($columns[$order], $direction);
+        }
+
+        $start = $request->input('start', 0);
+        $length = $request->input('length', 10);
+        $total = $query->count();
+
+        $permissions = $query->offset($start)->limit($length)->get();
+
+        return response()->json([
+            'draw' => $request->input('draw'),
+            'recordsTotal' => $total,
+            'recordsFiltered' => $total,
+            'data' => $permissions,
+        ]);
+    }
+
+    //i manually put permissions
+    // public function add_permission(Request $request)
+    // {
+    //     $permissions = [
+    //         //products
+    //         [
+    //             'name' => 'product-create',
+    //             'display_name' => 'Create Product',
+    //             'description' => 'Create Product',
+    //         ],
+    //         [
+    //             'name' => 'product-edit',
+    //             'display_name' => 'Edit Product',
+    //             'description' => 'Edit Product',
+    //         ],
+    //         [
+    //             'name' => 'product-update',
+    //             'display_name' => 'Update Product',
+    //             'description' => 'Update Product',
+    //         ],
+    //         [
+    //             'name' => 'product-delete',
+    //             'display_name' => 'Delete Product',
+    //             'description' => 'Delete Product',
+    //         ],
+    //         //users
+    //         [
+    //             'name' => 'user-create',
+    //             'display_name' => 'Create User',
+    //             'description' => 'Create User',
+    //         ],
+    //         [
+    //             'name' => 'user-edit',
+    //             'display_name' => 'Edit User',
+    //             'description' => 'Edit User',
+    //         ],
+    //         [
+    //             'name' => 'user-update',
+    //             'display_name' => 'Update User',
+    //             'description' => 'Update User',
+    //         ],
+    //         [
+    //             'name' => 'user-delete',
+    //             'display_name' => 'Delete User',
+    //             'description' => 'Delete User',
+    //         ],
+    //     ];
+        
+    //     Permission::insert($permissions);
+            
     // }
+
+    // add permission
+    public function add_permission(Request $request)
+    {
+        // return $request->product;
+        // return $request->permissions;
+
+        $validatedData = $request->validate([
+            'previlegeName' => ['required', 'string', 'max:255'],
+            'previlegeDisplayName' => ['required', 'string', 'max:255'],
+            'previlegeDescription' => ['required', 'string', 'max:255'],
+        ]);
+
+        $role = Role::create([
+            'name' => $validatedData['previlegeName'],
+            'display_name' => $validatedData['previlegeDisplayName'],
+            'description' => $validatedData['previlegeDescription'],
+        ]);
+
+        if(!empty($request->permissions)){
+            $role->attachPermissions($request->permissions);
+        };
+
+
+        return $request;
+    }
+    // get permission
+    public function get_permission(Request $request)
+    {
+        // return $request->id;
+        $permission = Role::with('permissions')->findOrFail($request->id);
+
+        return response()->json($permission);
+    }
+    // edit permission
+    public function edit_permission(Request $request)
+    {
+        // return $request->permissions;
+
+        $validatedData = $request->validate([
+            'editPrevilegeName' => ['required', 'string', 'max:255'],
+            'editPrevilegeDisplayName' => ['required', 'string', 'max:255'],
+            'editPrevilegeDescription' => ['required', 'string', 'max:255'],
+        ]);
+
+        $role = Role::findOrFail($request->input('id'));
+
+        $role->name = $request->input('editPrevilegeName');
+        $role->display_name = $request->input('editPrevilegeDisplayName');
+        $role->description = $request->input('editPrevilegeDescription');
+
+        $role->save();
+
+        $role->syncPermissions($request->permissions);
+
+        // if(!empty($request->permissions)){
+        //     $role->attachPermissions($request->permissions);
+        // };
+
+        
+    }
+
 
 
 
